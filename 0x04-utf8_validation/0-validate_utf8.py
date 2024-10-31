@@ -1,34 +1,54 @@
 #!/usr/bin/python3
+
 def validUTF8(data):
-    # Number of bytes in the current UTF-8 character
-    num_bytes = 0
-    
-    # Masks for checking the most significant bits
-    mask1 = 1 << 7  # 10000000
-    mask2 = 1 << 6  # 01000000
+  """
+  This function validates if a list of integers represents a valid UTF-8 encoding.
 
-    for byte in data:
-        # Only consider the least significant 8 bits
-        byte = byte & 0xFF
-        
-        if num_bytes == 0:
-            # Determine the number of bytes by the leading 1s
-            if (byte & mask1) == 0:
-                # 1-byte character
-                continue
-            elif (byte & (mask1 >> 1)) == (mask1 >> 1):
-                num_bytes = 1
-            elif (byte & (mask1 >> 2)) == (mask1 >> 2):
-                num_bytes = 2
-            elif (byte & (mask1 >> 3)) == (mask1 >> 3):
-                num_bytes = 3
-            else:
-                return False
-        else:
-            # Check if the byte is a valid continuation byte
-            if (byte & mask1) != mask1 or (byte & mask2) == 0:
-                return False
-            num_bytes -= 1
+  Args:
+      data: A list of integers representing bytes.
 
-    return num_bytes == 0
+  Returns:
+      True if the data is valid UTF-8 encoding, False otherwise.
+  """
+  consecutive_ones = 0  # Tracks the number of consecutive leading 1's in a byte
+
+  for byte in data:
+    # Get the 8 least significant bits (representing the actual byte data)
+    current_byte = byte & 0xFF
+
+    # Check for single-byte characters (start with 0)
+    if consecutive_ones == 0:
+      if current_byte < 0x80:
+        continue  # Valid single-byte character, move to next byte
+      else:
+        # Check for number of leading 1's based on byte range (2, 3, or 4 bytes)
+        num_leading_ones = 0
+        while current_byte & 0x80:
+          num_leading_ones += 1
+          current_byte = current_byte << 1
+
+        # Invalid character if number of leading 1's is not 2, 3, or 4
+        if num_leading_ones not in (2, 3, 4):
+          return False
+
+        consecutive_ones = num_leading_ones - 1  # Track remaining continuation bytes
+    else:
+      # Check for continuation bytes (start with 10)
+      if not (current_byte & 0xC0 == 0x80):
+        return False
+      consecutive_ones -= 1  # Decrement counter for continuation bytes
+
+  # Check if all continuation bytes are processed
+  return consecutive_ones == 0
+
+# Example usage (same as provided)
+if __name__ == "__main__":
+  data = [65]
+  print(validUTF8(data))
+
+  data = [80, 121, 116, 104, 111, 110, 32, 105, 115, 32, 99, 111, 111, 108, 33]
+  print(validUTF8(data))
+
+  data = [229, 65, 127, 256]
+  print(validUTF8(data))
 
